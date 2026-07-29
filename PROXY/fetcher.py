@@ -229,4 +229,3 @@ def get_country_summary(proxies: List[Dict]) -> dict:
         cc = p.get("country", "??")
         country_count[cc] = country_count.get(cc, 0) + 1
     return country_count
-
