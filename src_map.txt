@@ -1,0 +1,269 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║              Blackout Zone CHECKER BOT - SOURCE MAP                    ║
+║              Dev: @RBX404                                               ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ bot.py  (MAIN ENTRY POINT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  main()                    - Bot init, register handlers, start threads
+  auto_proxy_fetch_loop()   - Background: fetch Urban VPN proxies every 2min
+  auto_backup_loop()        - Background: send DB backup every 24h
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ CONFIG/config.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  BOT_TOKEN                 - Telegram bot token
+  ADMIN_ID                  - Admin user ID
+  DEFAULT_THREADS           - Checker thread count (30)
+  MAX_LINES                 - Max lines for non-approved users (10000)
+  MAX_FILE_SIZE_MB          - Max upload size (20MB)
+  DB_FILE                   - Database filename
+  PROXIES_FILE              - Proxy list filename
+  BACKUP_INTERVAL           - Backup every 86400s (24h)
+  PROXY_REFRESH_INTERVAL    - Auto proxy refresh every 120s (2min)
+  BUILTIN_PROXIES           - Hardcoded fallback proxies
+  MAX_RETRIES               - Login retry count (4)
+  UA                        - Default user agent string
+  USER_AGENTS               - TikTok user agents list
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ DATABASE/database.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  load_db()                 - Load JSON database from disk
+  save_db(db)               - Save database to disk (thread-safe)
+  get_user(db, uid)         - Get or create user entry
+  update_user_info(db, u)   - Update username/full_name from Telegram user
+  is_banned(db, uid)        - Check ban status, auto-expire timed bans
+  is_approved(db, uid)      - Check approved status, auto-expire timed approvals
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ HOME/state.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  bot                       - TeleBot instance (set in bot.py)
+  active_checks             - Dict: uid -> CheckerSession | "pending_uid" -> dict
+  active_checks_lock        - Threading lock for active_checks
+  BOT_START_TIME            - Unix timestamp of bot start
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ HOME/helpers.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  E_* constants             - Emoji unicode constants (50+)
+  mono(text)                - Wrap in <code> HTML tag
+  bold(text)                - Wrap in <b> HTML tag
+  italic(text)              - Wrap in <i> HTML tag
+  uline(text)               - Wrap in <u> HTML tag
+  link(text, url)           - HTML hyperlink
+  pre(text)                 - Wrap in <pre> HTML tag
+  strike(text)              - Wrap in <s> HTML tag
+  make_progress_bar(cur,total,length) - ASCII progress bar
+  get_profile_photo(uid)    - Fetch Telegram profile photo file_id
+  user_link(user)           - HTML link to user (first name)
+  user_full_link(user)      - HTML link to user (full name)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ HOME/session.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CheckerStats              - Class: all check counters + result lists
+    .inc(field, v)          - Thread-safe increment
+    .add(field, item)       - Thread-safe list append
+  CheckerSession            - Class: per-user check session
+    .process_one(email,pwd) - Check one combo (full pipeline)
+  XBOX_PULLED_AVAILABLE     - Bool: api_exam.py loaded successfully
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ HOME/messages.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  build_status_message(cs)      - Live checking status HTML message
+  build_summary_message(cs,stopped) - Final summary HTML message
+  send_hit_to_admin(email,pwd,cat,det,user) - DM hit to admin
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ HOME/results.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  get_bot_username()            - Fetch bot @username
+  build_hits_text(cs)           - All hits as plain text
+  build_result_zip(cs, user)    - Build full result zip file
+    → all_hits.txt, services_hits.txt, all_services.txt
+    → balance_hits.txt, rp_hits.txt, discord_promos.txt
+    → xbox_codes.txt, xbox_pulled/ (valid, claimed, expired, etc.)
+    → psn_hits.txt, steam_hits.txt, supercell_hits.txt
+    → tiktok_hits.txt, instagram_hits.txt, minecraft_hits.txt
+    → bad.txt, 2fa.txt, errors.txt, summary.txt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ HOME/runner.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  run_checker(cs, message, user) - Main checker runner thread
+    - Starts ThreadPoolExecutor with DEFAULT_THREADS
+    - Updates live status message every 3s
+    - On finish: saves DB stats, sends ZIP to user + admin
+    - Cleans up active_checks entry
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ API/checker_engine.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SKIP_RE, EM_RE, DISC_RE, XCODE_RE  - Compiled regex patterns
+  PROXY_EXC                           - Proxy exception tuple
+  parse_combos(lines)         - Parse email:pass combos from file
+  ms_login(email,pwd,pxr)     - Microsoft account login flow
+  check_services(sess,email)  - Get Microsoft subscriptions
+  fmt_svc(sv)                 - Format service dict to string
+  classify_svc(name)          - Classify service (xgpu/xgpe/xgpp/m365/other)
+  check_balance(sess)         - Check Microsoft wallet balance
+  check_rp(sess)              - Check Bing Rewards points
+  get_xbl(sess)               - Get Xbox Live auth token
+  check_discord(sess,xbl,pxr) - Find Discord Nitro promo links
+  disc_status(link,pxr)       - Validate Discord promo (VALID/CLAIMED/UNK)
+  check_xbox_codes(sess)      - Fetch Xbox codes from Bing Rewards history
+  _search_mail(sess,token,cid,q) - Search Outlook mail
+  check_psn(sess,token,cid)   - Check PSN orders in mail
+  check_steam(sess,token,cid) - Check Steam items in mail
+  check_supercell(sess,token,cid) - Check Supercell games in mail
+  check_tiktok(sess,token,cid)  - Full TikTok profile check
+  check_instagram(sess,token,cid) - Full Instagram profile check
+  check_minecraft_via_xbox(sess) - Minecraft via Xbox Live
+  check_minecraft_via_mail(sess,token,cid) - Minecraft via mail search
+  [internal helpers] _clean, _dosubmit, _form_sub, _issue, _follow
+  [internal helpers] _extract_svcs, _enrich
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ API/social.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  _xor_encode(text)           - XOR encode for TikTok API
+  _get_followers_range(count) - Map count to range string (0-999, 1k-1.9k, etc.)
+  _calculate_account_age(ts)  - Human-readable age from Unix timestamp
+  _search_tiktok_inbox(...)   - Find TikTok emails + extract username
+  _get_tiktok_profile(...)    - TikTok API profile fetch
+  _get_tiktok_profile_web(u)  - TikTok web scrape fallback
+  _search_instagram_inbox(...)  - Find Instagram emails + extract username
+  _get_instagram_profile(u)   - Instagram API profile fetch (httpx/http2)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ PROXY/proxy.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  load_proxies_from_file()    - Read proxies.txt -> list of strings
+  save_proxies_to_file(list)  - Write proxy strings to proxies.txt
+  init_proxies()              - Init file from BUILTIN_PROXIES if missing, return list
+  test_single_proxy(str)      - Test proxy via httpbin.org (True/False)
+  ProxyRotator(plist, use)    - Thread-safe rotating proxy pool
+    .get()                    - Get next working proxy dict
+    .ok(px)                   - Mark proxy as successful
+    .fail(px)                 - Increment proxy fail count
+    .total()                  - Total proxy count
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ PROXY/fetcher.py  (ADVANCED - Urban VPN)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  fetch_urban_vpn_proxies(callback) - Full fetch pipeline:
+    Step 1: Anonymous token from Urban VPN API
+    Step 2: Access token exchange
+    Step 3: Country + server list (50+ countries)
+    Step 4: Parallel credential fetch (MAX_WORKERS=50 threads)
+    Returns: List[Dict] with ip, port, user, pass, country
+  proxies_to_str_list(proxies)  - Convert to ip:port:user:pass strings
+  save_fetched_proxies(proxies, path) - Save to file
+  get_country_summary(proxies)  - Dict of country_code -> count
+  _fetch_single_credential(...) - Fetch one server's credentials
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ COMMANDS/START/start.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  register()              - Register all start/menu handlers
+  cmd_start               - /start command handler
+  cb_open_checker         - "open_checker" callback
+  cb_my_profile           - "my_profile" callback
+  cb_bot_status           - "bot_status" callback
+  cb_exit                 - "exit_bot" callback
+  cb_back_to_menu         - "back_to_menu" callback
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ COMMANDS/CHECKER/handlers.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  register()              - Register all checker handlers
+  handle_document         - .txt file upload handler
+  cb_proceed_check        - "proceed_check_<uid>" callback - start check
+  cb_abort_check          - "abort_check_<uid>" callback - cancel
+  cb_get_hits             - "get_hits_<uid>" callback - get current hits
+  cb_stop_check           - "stop_check_<uid>" callback - stop checker
+  cmd_stop                - /stop command handler
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ COMMANDS/ADMIN/admin.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  register()              - Register all admin command handlers
+  cmd_adm                 - /adm - Admin panel help
+  cmd_ban                 - /ban <id> <reason> [days]
+  cmd_unban               - /unban <id> [reason]
+  cmd_approve             - /approve <id> [days]
+  cmd_demote              - /demote <id>
+  cmd_broadcast           - /broadcast (reply to message)
+  cmd_status              - /status - Full bot statistics
+  cmd_get_proxies         - /get_proxies - Send proxies.txt
+  cmd_addproxy            - /addproxy <proxy> - Test & add proxy
+  cmd_updatep             - /updatep - Replace proxies from file
+  cmd_test_proxies        - /test - Test all proxies in parallel
+  cmd_scrap               - /scrap - Fetch proxies from Urban VPN, send to admin
+  cmd_fetch               - /fetch - Manual DB backup
+  send_backup(chat_id,reason) - Build & send backup ZIP
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ API/api_exam.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  fetch_oauth_tokens(sess)     - Get PPFT + urlPost for Xbox login
+  fetch_login(sess,em,pw,...)  - Xbox login, get RPS ticket
+  get_xbox_tokens(sess,rps)    - Exchange RPS for UHS + XSTS tokens
+  fetch_codes_from_xbox(...)   - Fetch redeemable codes from Game Pass
+  login_microsoft_account(...) - Full MS login session for code validation
+  validate_code_primary(...)   - Validate Xbox code, return status dict
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ AUTO SYSTEMS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Proxy Auto-Fetch:
+    - Runs every 2 minutes (PROXY_REFRESH_INTERVAL=120)
+    - Fetches from Urban VPN using PROXY/fetcher.py
+    - Replaces proxies.txt atomically
+    - Prints total fetched to console
+    - Does NOT interrupt running checks (each CheckerSession
+      has its own ProxyRotator snapshot taken at start)
+
+  DB Auto-Backup:
+    - Sends initial backup 5s after bot start
+    - Then every 24h (BACKUP_INTERVAL=86400)
+    - Sends ZIP with bot_database.json + proxies.txt to ADMIN_ID
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ FOLDER STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  bot/
+  ├── bot.py                  # Main entry point (~60 lines)
+  ├── src_map.txt             # This file
+  ├── proxies.txt             # Proxy list (auto-updated)
+  ├── DB/
+  │   └── bot_database.json   # Runtime DB
+  ├── CONFIG/
+  │   └── config.py           # All constants
+  ├── DATABASE/
+  │   └── database.py         # DB load/save/query
+  ├── HOME/
+  │   ├── state.py            # Global bot instance + active_checks
+  │   ├── helpers.py          # Emoji + HTML helpers
+  │   ├── session.py          # CheckerStats + CheckerSession
+  │   ├── messages.py         # Status/summary message builders
+  │   ├── results.py          # ZIP builder + hits text
+  │   └── runner.py           # run_checker() thread
+  ├── API/
+  │   ├── api_exam.py         # Xbox Pulled API
+  │   ├── checker_engine.py   # MS login + all service checks
+  │   └── social.py           # TikTok + Instagram helpers
+  ├── PROXY/
+  │   ├── proxy.py            # ProxyRotator + file I/O
+  │   └── fetcher.py          # Advanced Urban VPN fetcher
+  └── COMMANDS/
+      ├── START/
+      │   └── start.py        # /start + menu callbacks
+      ├── CHECKER/
+      │   └── handlers.py     # File upload + check callbacks + /stop
+      └── ADMIN/
+          └── admin.py        # All admin commands + /scrap
